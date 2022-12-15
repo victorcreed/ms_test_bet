@@ -1,0 +1,73 @@
+version: '3'
+services:
+  blockchain:
+    build:
+      context: ./blockchain_api
+    ports:
+      - "9000:9000"
+      
+  mongo:
+    image: mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - crash-nosql-data:/data/db
+  chat:
+    build:
+      context: ./chat_py
+    ports:
+      - "8000:8000"
+    environment:
+      - MONGO_HOST=mongo
+      - MONGO_PORT=27017
+    depends_on:
+      - mongo
+  db:
+    image: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - crash-db-data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_HOST_AUTH_METHOD=trust
+  redis:
+    image: redis:4.0.14-alpine
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+  sidekiq:
+    build:
+      context: ./crash
+    environment:
+      - DB_HOST=db
+      - DATABASE_URL=postgresql://postgres@db:5432/crash_development
+      - RAILS_ENV=development
+      - REDIS_URL=redis://redis:6379/1
+      - SIDEKIQ_URL=redis://redis:6379/1
+    command: bundle exec sidekiq -C config/sidekiq.yml
+    depends_on:
+      - db
+      - redis
+  web:
+    build:
+      context: ./crash
+    ports:
+      - "3000:3000"
+    environment:
+      - DB_HOST=db
+      - DATABASE_URL=postgresql://postgres@db:5432/crash_development
+      - RAILS_ENV=development
+      - REDIS_URL=redis://redis:6379/1
+      - SIDEKIQ_URL=redis://redis:6379/1
+    links:
+      - db
+      - redis
+    depends_on:
+      - db
+      - redis
+    
+volumes:
+  crash-nosql-data:
+  crash-db-data:
+  redis-data:
+  crash-backend:
