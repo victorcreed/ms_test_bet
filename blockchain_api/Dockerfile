@@ -8,4 +8,4 @@ COPY package* $APP/
 RUN npm i
 
 COPY . $APP/
-CMD ["node", "start"]
+CMD ["npm", "start"]
